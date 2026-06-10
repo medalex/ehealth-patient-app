@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Patient Portal</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { background:#f0f7f4; font-size:.92rem; }
+    .topbar { background:#2d6a4f; color:#fff; padding:.65rem 1.4rem; display:flex; align-items:center; gap:.8rem; }
+    .topbar h1 { font-size:1.05rem; margin:0; font-weight:600; }
+    .wrap { max-width:960px; margin:0 auto; padding:1.4rem; }
+    .panel { background:#fff; border-radius:8px; border:1px solid #d8e8e0; margin-bottom:1.2rem; overflow:hidden; }
+    .panel-head { background:#e8f5ef; border-bottom:1px solid #d8e8e0; padding:.5rem 1rem; font-weight:600; font-size:.84rem; color:#2d6a4f; }
+    .panel-body { padding:1rem; }
+    label { font-size:.82rem; font-weight:500; }
+    .mono { font-family:monospace; font-size:.75rem; }
+    .btn-main { background:#2d6a4f; border-color:#2d6a4f; color:#fff; }
+    .btn-main:hover { background:#40916c; border-color:#40916c; color:#fff; }
+    table { font-size:.82rem; }
+    .consent-tag { font-size:.72rem; padding:.15em .5em; border-radius:3px; background:#d4edda; color:#155724; font-weight:600; }
+  </style>
+</head>
+<body>
+<div class="topbar">
+  <span>🧑‍⚕️</span>
+  <h1>Patient Portal</h1>
+  <span class="ms-auto opacity-75 small">eHealth Demo · Patient API :3001</span>
+</div>
+
+<div class="wrap">
+
+  <div class="panel">
+    <div class="panel-head">Register new patient</div>
+    <div class="panel-body">
+      <div class="row g-2">
+        <div class="col-sm-2"><label>First name</label><input id="fn" class="form-control form-control-sm" value="Anna"></div>
+        <div class="col-sm-2"><label>Last name</label><input id="ln" class="form-control form-control-sm" value="Kovalenko"></div>
+        <div class="col-sm-2"><label>Date of birth</label><input id="dob" type="date" class="form-control form-control-sm" value="1990-05-15"></div>
+        <div class="col-sm-2"><label>Gender</label>
+          <select id="gender" class="form-select form-select-sm">
+            <option>Male</option><option selected>Female</option><option>Other</option>
+          </select>
+        </div>
+        <div class="col-sm-3"><label>Email</label><input id="email" class="form-control form-control-sm" value="anna@demo.health"></div>
+        <div class="col-sm-1 d-flex align-items-end">
+          <button class="btn btn-main btn-sm w-100" onclick="createPatient()">Add</button>
+        </div>
+      </div>
+      <div id="reg-msg" class="mt-2"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head d-flex justify-content-between align-items-center">
+      Patients
+      <button class="btn btn-outline-secondary btn-sm" onclick="loadPatients()">↻ Refresh</button>
+    </div>
+    <div class="panel-body p-0">
+      <table class="table table-hover table-sm mb-0">
+        <thead class="table-light"><tr><th>Name</th><th>DOB</th><th>Gender</th><th>Email</th><th>ID</th><th></th></tr></thead>
+        <tbody id="patient-list"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel" id="consent-panel" style="display:none">
+    <div class="panel-head">Consents — <span id="consent-for"></span></div>
+    <div class="panel-body">
+      <div class="row g-2 mb-3">
+        <div class="col-sm-5"><label>Organization ID</label><input id="org" class="form-control form-control-sm" placeholder="hospital-001"></div>
+        <div class="col-sm-3"><label>Expires (optional)</label><input id="exp" type="datetime-local" class="form-control form-control-sm"></div>
+        <div class="col-sm-2 d-flex align-items-end"><button class="btn btn-main btn-sm" onclick="grantConsent()">Grant</button></div>
+      </div>
+      <div id="consent-msg" class="mb-2"></div>
+      <table class="table table-sm mb-0">
+        <thead class="table-light"><tr><th>Organization</th><th>Granted</th><th>Expires</th><th></th></tr></thead>
+        <tbody id="consent-list"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const API = 'http://localhost:3001';
+let selPid = null;
+
+const get  = p => fetch(API+p).then(r=>r.json());
+const post = (p,b) => fetch(API+p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}).then(async r=>{if(!r.ok)throw new Error(await r.text());return r.json();});
+const del  = p => fetch(API+p,{method:'DELETE'});
+const flash = (id,html,t='success') => document.getElementById(id).innerHTML=`<div class="alert alert-${t} p-2 small mb-0">${html}</div>`;
+
+async function loadPatients(){
+  const rows = await get('/api/patients');
+  document.getElementById('patient-list').innerHTML = rows.length
+    ? rows.map(p=>`<tr>
+        <td><strong>${p.firstName} ${p.lastName}</strong></td>
+        <td>${p.dateOfBirth}</td><td>${p.gender}</td><td>${p.email}</td>
+        <td class="mono">${p.id.slice(0,8)}… <button class="btn btn-link p-0" onclick="navigator.clipboard.writeText('${p.id}')" title="Copy ID">📋</button></td>
+        <td><button class="btn btn-outline-secondary btn-sm" onclick="openConsents('${p.id}','${p.firstName} ${p.lastName}')">Consents</button></td>
+      </tr>`).join('')
+    : '<tr><td colspan="6" class="text-center text-muted py-3">No patients yet</td></tr>';
+}
+
+async function createPatient(){
+  try {
+    const p = await post('/api/patients',{firstName:document.getElementById('fn').value,lastName:document.getElementById('ln').value,dateOfBirth:document.getElementById('dob').value,gender:document.getElementById('gender').value,email:document.getElementById('email').value});
+    flash('reg-msg',`Registered <strong>${p.firstName} ${p.lastName}</strong> — <code>${p.id}</code>`);
+    loadPatients();
+  } catch(e){flash('reg-msg',e.message,'danger');}
+}
+
+async function openConsents(id,name){
+  selPid=id; document.getElementById('consent-for').textContent=name;
+  document.getElementById('consent-panel').style.display='';
+  const rows = await get(`/api/consents/patient/${id}`);
+  document.getElementById('consent-list').innerHTML = rows.length
+    ? rows.map(c=>`<tr><td>${c.organizationId}</td><td>${new Date(c.grantedAt).toLocaleDateString()}</td><td>${c.expiresAt?new Date(c.expiresAt).toLocaleDateString():'—'}</td><td><button class="btn btn-outline-danger btn-sm" onclick="revokeConsent('${c.id}')">Revoke</button></td></tr>`).join('')
+    : '<tr><td colspan="4" class="text-muted">No consents</td></tr>';
+}
+
+async function grantConsent(){
+  try{
+    const exp=document.getElementById('exp').value;
+    await post('/api/consents',{patientId:selPid,organizationId:document.getElementById('org').value,expiresAt:exp?new Date(exp).toISOString():null});
+    flash('consent-msg','Consent granted');
+    openConsents(selPid,document.getElementById('consent-for').textContent);
+  }catch(e){flash('consent-msg',e.message,'danger');}
+}
+
+async function revokeConsent(id){
+  await del(`/api/consents/${id}`);
+  openConsents(selPid,document.getElementById('consent-for').textContent);
+}
+
+loadPatients();
+</script>
+</body>
+</html>
