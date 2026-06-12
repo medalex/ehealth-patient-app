@@ -38,7 +38,7 @@
         <div class="col-sm-2"><label>Date of birth</label><input id="dob" type="date" class="form-control form-control-sm" value="1990-05-15"></div>
         <div class="col-sm-2"><label>Gender</label>
           <select id="gender" class="form-select form-select-sm">
-            <option>Male</option><option selected>Female</option><option>Other</option>
+            <option value="0">Male</option><option value="1" selected>Female</option><option value="2">Other</option>
           </select>
         </div>
         <div class="col-sm-3"><label>Email</label><input id="email" class="form-control form-control-sm" value="anna@demo.health"></div>
@@ -95,7 +95,7 @@ async function loadPatients(){
   document.getElementById('patient-list').innerHTML = rows.length
     ? rows.map(p=>`<tr>
         <td><strong>${p.firstName} ${p.lastName}</strong></td>
-        <td>${p.dateOfBirth}</td><td>${p.gender}</td><td>${p.email}</td>
+        <td>${p.dateOfBirth}</td><td>${['Male','Female','Other'][p.gender]??p.gender}</td><td>${p.email}</td>
         <td class="mono">${p.id.slice(0,8)}… <button class="btn btn-link p-0" onclick="navigator.clipboard.writeText('${p.id}')" title="Copy ID">📋</button></td>
         <td><button class="btn btn-outline-secondary btn-sm" onclick="openConsents('${p.id}','${p.firstName} ${p.lastName}')">Consents</button></td>
       </tr>`).join('')
@@ -104,7 +104,7 @@ async function loadPatients(){
 
 async function createPatient(){
   try {
-    const p = await post('/api/patients',{firstName:document.getElementById('fn').value,lastName:document.getElementById('ln').value,dateOfBirth:document.getElementById('dob').value,gender:document.getElementById('gender').value,email:document.getElementById('email').value});
+    const p = await post('/api/patients',{firstName:document.getElementById('fn').value,lastName:document.getElementById('ln').value,dateOfBirth:document.getElementById('dob').value,gender:parseInt(document.getElementById('gender').value),email:document.getElementById('email').value});
     flash('reg-msg',`Registered <strong>${p.firstName} ${p.lastName}</strong> — <code>${p.id}</code>`);
     loadPatients();
   } catch(e){flash('reg-msg',e.message,'danger');}
