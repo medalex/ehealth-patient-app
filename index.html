@@ -91,15 +91,30 @@ const del  = p => fetch(API+p,{method:'DELETE'});
 const flash = (id,html,t='success') => document.getElementById(id).innerHTML=`<div class="alert alert-${t} p-2 small mb-0">${html}</div>`;
 
 async function loadPatients(){
-  const rows = await get('/api/patients');
-  document.getElementById('patient-list').innerHTML = rows.length
-    ? rows.map(p=>`<tr>
-        <td><strong>${p.firstName} ${p.lastName}</strong></td>
-        <td>${p.dateOfBirth}</td><td>${['Male','Female','Other'][p.gender]??p.gender}</td><td>${p.email}</td>
-        <td class="mono">${p.id.slice(0,8)}… <button class="btn btn-link p-0" onclick="navigator.clipboard.writeText('${p.id}')" title="Copy ID">📋</button></td>
-        <td><button class="btn btn-outline-secondary btn-sm" onclick="openConsents('${p.id}','${p.firstName} ${p.lastName}')">Consents</button></td>
-      </tr>`).join('')
-    : '<tr><td colspan="6" class="text-center text-muted py-3">No patients yet</td></tr>';
+  const tbody = document.getElementById('patient-list');
+  try {
+    const rows = await get('/api/patients');
+    tbody.innerHTML = rows.length
+      ? rows.map(p=>`<tr>
+          <td><strong>${p.firstName} ${p.lastName}</strong></td>
+          <td>${p.dateOfBirth}</td><td>${['Male','Female','Other'][p.gender]??p.gender}</td><td>${p.email}</td>
+          <td class="mono">${p.id.slice(0,8)}… <button class="btn btn-link p-0" onclick="navigator.clipboard.writeText('${p.id}')" title="Copy ID">📋</button></td>
+          <td><button class="btn btn-outline-secondary btn-sm" onclick="openConsents('${p.id}','${p.firstName} ${p.lastName}')">Consents</button></td>
+        </tr>`).join('')
+      : '<tr><td colspan="6" class="text-center text-muted py-3">No patients yet</td></tr>';
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-3">Failed to load patients: ${e.message} <button class="btn btn-sm btn-outline-danger ms-2" onclick="loadPatients()">Retry</button></td></tr>`;
+    throw e;
+  }
+}
+
+// Initial load with a few retries — survives a startup race where the API
+// is not ready yet when the page first opens (otherwise the list stayed empty).
+async function loadPatientsWithRetry(attempts=5, delay=800){
+  for (let i=0; i<attempts; i++){
+    try { await loadPatients(); return; }
+    catch { await new Promise(r=>setTimeout(r, delay)); }
+  }
 }
 
 async function createPatient(){
@@ -133,7 +148,7 @@ async function revokeConsent(id){
   openConsents(selPid,document.getElementById('consent-for').textContent);
 }
 
-loadPatients();
+loadPatientsWithRetry();
 </script>
 </body>
 </html>
