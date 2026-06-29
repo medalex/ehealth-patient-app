@@ -18,6 +18,7 @@
     .btn-main:hover { background:#40916c; border-color:#40916c; color:#fff; }
     table { font-size:.82rem; }
     .consent-tag { font-size:.72rem; padding:.15em .5em; border-radius:3px; background:#d4edda; color:#155724; font-weight:600; }
+    .consent-tag.no { background:#f8d7da; color:#721c24; }
   </style>
 </head>
 <body>
@@ -73,7 +74,7 @@
       </div>
       <div id="consent-msg" class="mb-2"></div>
       <table class="table table-sm mb-0">
-        <thead class="table-light"><tr><th>Organization</th><th>Granted</th><th>Expires</th><th></th></tr></thead>
+        <thead class="table-light"><tr><th>Organization</th><th>Granted</th><th>Expires</th><th>DKG</th><th></th></tr></thead>
         <tbody id="consent-list"></tbody>
       </table>
     </div>
@@ -130,8 +131,8 @@ async function openConsents(id,name){
   document.getElementById('consent-panel').style.display='';
   const rows = await get(`/api/consents/patient/${id}`);
   document.getElementById('consent-list').innerHTML = rows.length
-    ? rows.map(c=>`<tr><td>${c.organizationId}</td><td>${new Date(c.grantedAt).toLocaleDateString()}</td><td>${c.expiresAt?new Date(c.expiresAt).toLocaleDateString():'—'}</td><td><button class="btn btn-outline-danger btn-sm" onclick="revokeConsent('${c.id}')">Revoke</button></td></tr>`).join('')
-    : '<tr><td colspan="4" class="text-muted">No consents</td></tr>';
+    ? rows.map(c=>`<tr><td>${c.organizationId}</td><td>${new Date(c.grantedAt).toLocaleDateString()}</td><td>${c.expiresAt?new Date(c.expiresAt).toLocaleDateString():'—'}</td><td>${c.dkgUal?`<span class="consent-tag" title="${c.dkgUal}">✓ in DKG</span>`:'<span class="consent-tag no" title="Not anchored — physician-access gate will deny">✗ not in DKG</span>'}</td><td><button class="btn btn-outline-danger btn-sm" onclick="revokeConsent('${c.id}')">Revoke</button></td></tr>`).join('')
+    : '<tr><td colspan="5" class="text-muted">No consents</td></tr>';
 }
 
 async function grantConsent(){
